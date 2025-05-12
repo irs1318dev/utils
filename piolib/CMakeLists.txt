@@ -1,14 +1,14 @@
 cmake_minimum_required(VERSION 3.10...3.27)
 
-include(GNUInstallDirs)
-
-add_subdirectory(examples)
-
 #set project name
 project(
     piolib
     VERSION 1.0.0
     LANGUAGES C)
+
+include(GNUInstallDirs)
+
+add_subdirectory(examples)
 
 add_compile_definitions(LIBRARY_BUILD=1)
 
@@ -35,7 +35,7 @@ set(INCLUDE_FILES
 install(TARGETS pio ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT piolib)
 foreach ( file ${INCLUDE_FILES} )
     get_filename_component( dir ${file} DIRECTORY )
-    install( FILES "include/${file}" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/piolib/${dir}" COMPONENT piolib)
+    install( FILES "include/${file}" DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${dir}" COMPONENT piolib)
 endforeach()
 
 include(CMakePackageConfigHelpers)
