@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 # Author: Phil Elwell <phil@raspberrypi.com>
-# Copyright (c) 2018-2021, Raspberry Pi (Trading) Ltd.
+# Copyright (c) 2018-2025, Raspberry Pi Ltd.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -15,10 +15,6 @@
 # 3. The names of the above-listed copyright holders may not be used
 #    to endorse or promote products derived from this software without
 #    specific prior written permission.
-#
-# ALTERNATIVELY, this software may be distributed under the terms of the
-# GNU General Public License ("GPL") version 2, as published by the Free
-# Software Foundation.
 #
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
 # IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
@@ -105,6 +101,7 @@ my $trace_parse = 0;
 my $trace_tree = 0;
 my $trace_prop = '';
 my $trace_label = '';
+my $bkpt = 0;
 my $indent_str = "\t";
 
 my @redo_comments;
@@ -123,6 +120,15 @@ while ($ARGV[0] =~ /^-/)
 			usage();
 		}
 		push @cmdline, $arg, $branch;
+	}
+	elsif ($arg eq '-B')
+	{
+		$bkpt = shift @ARGV;
+		if (!defined $bkpt)
+		{
+			print STDERR ("* Breakpoint number missing\n");
+			usage();
+		}
 	}
 	elsif ($arg eq '-c')
 	{
@@ -302,7 +308,7 @@ foreach my $overlay (@ARGV)
 	}
 	$cur_dt = undef;
 
-	ovstrip($dt) if ($dt->{'plugin'});
+	ovstrip($dt) if ($dt->{'plugin'} && !$no_renumber);
 
 	push @overlays, $dt;
 }
@@ -378,8 +384,8 @@ sub dtparse
 	#   'labels' => hash of labels used in tree
 	#   'refcount' => hash of reference count of labels in tree (excluding the definition)
 	#   'includes' => array of included headers (array to preserve order)
-	#   'memreserves' => array of memreseve [base,length] pairs
-	#   'defines' => array of memreseve [base,length] pairs
+	#   'memreserves' => array of memreserve [base,length] pairs
+	#   'defines' => #define hash mapping name to value
 
 	my ($filename, $got_header) = @_;
 
@@ -397,6 +403,7 @@ sub dtparse
 		$next = match($state, $next);
 		if ($type eq '#include')
 		{
+			print("[#include $next]\n") if ($trace_parse);
 			set_add($dt->{'includes'}, $next);
 			$next = match($state, $next);
 		}
@@ -542,6 +549,14 @@ sub dtdump
 		}
 		print("\n");
 	}
+	if (%{$dt->{'defines'}}) {
+		while (my ($name, $value) = each (%{$dt->{'defines'}}))
+		{
+			print("#define $name $value\n");
+		}
+		print("\n");
+	}
+
 	if (!set_empty($dt->{'memreserves'}))
 	{
 		foreach my $res (set_vals($dt->{'memreserves'}))
@@ -1092,6 +1107,13 @@ sub parse_node
 			}
 			next;
 		}
+		elsif ($next eq '#include')
+		{
+			$next = match($state, $next);
+			set_add($cur_dt->{'includes'}, $next);
+			$next = match($state, $next);
+			next;
+		}
 
 		while ($next =~ /^(\w+):$/)
 		{
@@ -1503,7 +1525,11 @@ sub match
 	my ($state, $match) = @_;
 	my $next = get_head($state);
 	print("[match '$match' @ $state->[1]]\n") if ($trace_parse);
-	die "* Unexpected token '$next' - expected '$match'\n" if ($next ne $match);
+	if ($next ne $match)
+	{
+		$DB::single = 1;
+		die "* Unexpected token '$next' - expected '$match'\n";
+	}
 	return get_next($state);
 }
 
@@ -1511,6 +1537,7 @@ sub get_next
 {
 	my ($state) = @_;
 	$state->[1]++;
+	$DB::single = 1 if ($bkpt == $state->[1]);
 	return get_head($state);
 }
 
@@ -2171,6 +2198,7 @@ sub usage
 	print STDERR ("    overlay to avoid a potential name clash.\n");
 	print STDERR ("  and <options> are any of:\n");
 	print STDERR ("    -b <branch>  Read files from specified git branch\n");
+	print STDERR ("    -B <token numer>  Set a debug breakpoint on the specified token number\n");
 	print STDERR ("    -c      Include 'redo' comment with command line (c.f. '-r')\n");
 	print STDERR ("    -e      Expand mode - list non-skipped lines in order of inclusion\n");
 	print STDERR ("    -f      Force some errors to be ignored\n");

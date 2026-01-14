@@ -15,3 +15,12 @@ add_subdirectory(raspinfo)
 add_subdirectory(vcgencmd)
 add_subdirectory(vclog)
 add_subdirectory(vcmailbox)
+
+# Only build rpifwcrypto if GnuTLS is available
+include(CheckIncludeFile)
+check_include_file(gnutls/crypto.h HAVE_GNUTLS_CRYPTO_H)
+if(HAVE_GNUTLS_CRYPTO_H)
+    add_subdirectory(rpifwcrypto)
+else()
+    message(STATUS "gnutls/crypto.h not found - skipping rpifwcrypto")
+endif()

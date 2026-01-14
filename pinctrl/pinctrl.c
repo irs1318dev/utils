@@ -69,7 +69,8 @@ static void usage(void)
     printf("Running %s with the help argument prints this help.\n", name);
     printf("%s can get and print the state of a GPIO (or all GPIOs)\n", name);
     printf("and can be used to set the function, pulls and value of a GPIO.\n");
-    printf("%s must be run as root.\n", name);
+    printf("%s must be run as root (or as a member of group 'gpio'\n", name);
+    printf("on RPiOS).\n");
     printf("Use:\n");
     printf("  %s [-p] [-v] get [GPIO]\n", name);
     printf("OR\n");
@@ -82,6 +83,8 @@ static void usage(void)
     printf("  %s [-p] [-v] lev [GPIO]\n", name);
     printf("OR\n");
     printf("  %s -c <chip> [funcs] [GPIO]\n", name);
+    printf("OR\n");
+    printf("  %s -l\n", name);
     printf("\n");
     printf("GPIO is a comma-separated list of GPIO names, numbers or ranges (without\n");
     printf("spaces), e.g. 4 or 18-21 or BT_ON,9-11\n");
@@ -94,6 +97,7 @@ static void usage(void)
     printf("or if [GPIO] is specified the alternate funcs just for that specific GPIO.\n");
     printf("The -c option allows the alt functions (and only the alt function) for a named\n");
     printf("chip to be displayed, even if that chip is not present in the current system.\n");
+    printf("The -l option lists the discovered chips.\n");
     printf("\n");
     printf("Valid [options] for %s set are:\n", name);
     printf("  ip      set GPIO as input\n");
@@ -119,6 +123,7 @@ static void usage(void)
     printf("  %s set 20 op pn dh  Set GPIO20 to output with no pull and driving high\n", name);
     printf("  %s lev 4            Prints the level (1 or 0) of GPIO4\n", name);
     printf("  %s -c bcm2835 9-11  Display the alt functions for GPIOs 9-11 on bcm2835\n", name);
+    printf("  %s -l               List the compatible detected GPIO chips\n", name);
 }
 
 static int do_gpio_get(unsigned int gpio)
@@ -338,6 +343,7 @@ int main(int argc, char *argv[])
     int poll = 0;
     int funcs = 0;
     int echo = 0;
+    int list = 0;
     int pull = PULL_MAX;
     int infer_cmd = 0;
     int fsparam = GPIO_FSEL_MAX;
@@ -355,24 +361,7 @@ int main(int argc, char *argv[])
         const char *arg = *(argv++);
         argc--;
 
-        if (strcmp(arg, "-h") == 0)
-        {
-            usage();
-            return 0;
-        }
-        else if (strcmp(arg, "-p") == 0)
-        {
-            pin_mode = 1;
-        }
-        else if (strcmp(arg, "-e") == 0)
-        {
-            echo = 1;
-        }
-        else if (strcmp(arg, "-v") == 0)
-        {
-            verbose_mode = 1;
-        }
-        else if (strcmp(arg, "-c") == 0)
+        if (strcmp(arg, "-c") == 0)
         {
             if (!argc)
             {
@@ -381,6 +370,28 @@ int main(int argc, char *argv[])
             }
             named_chip = *(argv++);
             argc--;
+        }
+        else if (strcmp(arg, "-e") == 0)
+        {
+            echo = 1;
+        }
+        else if (strcmp(arg, "-h") == 0)
+        {
+            usage();
+            return 0;
+        }
+        else if (strcmp(arg, "-l") == 0)
+        {
+            list = 1;
+            verbose_mode = 1;
+        }
+        else if (strcmp(arg, "-p") == 0)
+        {
+            pin_mode = 1;
+        }
+        else if (strcmp(arg, "-v") == 0)
+        {
+            verbose_mode = 1;
         }
         else
         {
@@ -444,6 +455,9 @@ int main(int argc, char *argv[])
     {
         get = 1;
     }
+
+    if (list)
+        return 0;
 
     if (pin_mode)
     {
@@ -661,7 +675,7 @@ int main(int argc, char *argv[])
         if (ret)
         {
             if (ret == EACCES && geteuid())
-                printf("Must be root\n");
+                printf("Must be root (or group 'gpio' on RPiOS)\n");
             else
                 printf("Failed to mmap gpiolib - %s\n", strerror(ret));
             return -1;

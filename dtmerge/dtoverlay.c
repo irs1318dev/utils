@@ -2855,7 +2855,8 @@ const char *dtoverlay_remap_overlay(const char *overlay)
             dtoverlay_warn("overlay '%s' has been renamed '%s'",
                            overlay, new_name);
             overlay = new_name;
-            continue;
+            // Stop at a rename, rather than have to deal with multiple sets of parameters
+            break;
         }
 
         deprecated_msg = fdt_getprop_namelen(overlay_map->fdt, overlay_off,
@@ -3086,7 +3087,7 @@ int dtoverlay_node_is_enabled(DTBLOB_T *dtb, int pos)
     if (pos >= 0)
     {
         const void *prop = dtoverlay_get_property(dtb, pos, "status", NULL);
-        if (prop &&
+        if (!prop ||
             ((strcmp((const char *)prop, "okay") == 0) ||
              (strcmp((const char *)prop, "ok") == 0)))
             return 1;
